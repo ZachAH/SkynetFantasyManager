@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Terminal, Settings, Send, Loader2, AlertTriangle } from "lucide-react";
 import clsx from "clsx";
@@ -10,6 +10,7 @@ import { useLeague, useLeagueRosters, useLeagueUsers, useAllPlayers, useSkynetGM
 import { useSkynetMatchup } from "../../hooks/useSkynetMatchup";
 import { useCurrentDraft } from "../../hooks/useLeagueDraft";
 import { buildDraftContextSummary, buildLeagueContextSummary } from "../../lib/leagueContext";
+import { computeDraftTurn } from "../../lib/draftTurn";
 import { resolveEffectiveLeague } from "../../lib/resolveLeagueSettings";
 import { MODE_INSTRUCTIONS, SKYNET_SYSTEM_PROMPT, buildModePrompt, type SkynetMode } from "../../lib/skynetPrompts";
 import { chatComplete } from "../../services/llm";
@@ -22,12 +23,21 @@ const MODES: { value: SkynetMode; label: string }[] = [
   { value: "freeform", label: "Operator Query" },
 ];
 
-export function SkynetConsole() {
+interface Props {
+  /** Bump this (e.g. ++) to force-switch to Draft Assistant mode, even if this tab is already mounted. */
+  forceDraftModeSignal?: number;
+}
+
+export function SkynetConsole({ forceDraftModeSignal }: Props) {
   const settings = useSettings();
   const commish = useCommish();
   const [mode, setMode] = useState<SkynetMode>("lineup");
   const [freeformInput, setFreeformInput] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    if (forceDraftModeSignal) setMode("draft");
+  }, [forceDraftModeSignal]);
 
   const league = useLeague();
   const users = useLeagueUsers();
@@ -68,6 +78,7 @@ export function SkynetConsole() {
               users: users.data,
               rosterPositions: effectiveLeague?.roster_positions ?? [],
               skynetRosterId: skynet.roster?.roster_id,
+              turn: computeDraftTurn(draft.draft, draft.picks, skynet.user?.user_id),
             })
           : "";
 

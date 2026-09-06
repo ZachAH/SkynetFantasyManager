@@ -1,5 +1,6 @@
 import { detectPprFormat } from "./scoringMatrix";
 import { parseRosterPositions } from "./rosterSlots";
+import type { DraftTurnInfo } from "./draftTurn";
 import { fmtPoints, fptsAgainstFromRoster, fptsFromRoster, injuryBadge, playerDisplayName, record, teamNameForUser } from "./format";
 import type {
   SleeperDraft,
@@ -124,10 +125,11 @@ interface DraftContextArgs {
   users: SleeperUser[] | undefined;
   rosterPositions: string[];
   skynetRosterId: number | undefined;
+  turn?: DraftTurnInfo;
 }
 
 export function buildDraftContextSummary(args: DraftContextArgs): string {
-  const { draft, picks, players, users, rosterPositions, skynetRosterId } = args;
+  const { draft, picks, players, users, rosterPositions, skynetRosterId, turn } = args;
   const lines: string[] = [];
 
   if (!draft) {
@@ -137,6 +139,13 @@ export function buildDraftContextSummary(args: DraftContextArgs): string {
 
   lines.push(`DRAFT STATUS: ${draft.status.toUpperCase()} (${draft.type}, ${draft.settings.rounds ?? "?"} rounds)`);
   lines.push(`PICKS MADE: ${picks.length}`);
+  if (turn) {
+    lines.push(
+      turn.isSkynetOnTheClock
+        ? `SKYNET IS ON THE CLOCK RIGHT NOW: pick ${turn.currentPickNumber} (round ${turn.currentRound}). This recommendation is for THIS pick.`
+        : `NOT SKYNET'S TURN YET: currently pick ${turn.currentPickNumber} (round ${turn.currentRound}); Skynet is on the clock in ${turn.picksUntilSkynet ?? "?"} picks. Recommend Skynet's best available target as of right now, understanding the board may shift before Skynet's actual turn.`,
+    );
+  }
 
   const shape = parseRosterPositions(rosterPositions);
   lines.push(`REQUIRED STARTING SLOTS: ${Object.entries(shape.startersByPosition).map(([p, n]) => `${p}x${n}`).join(", ")}`);
