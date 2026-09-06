@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Orbitron", "JetBrains Mono", monospace;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --color-void: #050607;
+  --color-panel: #0a0d0d;
+  --color-panel-raised: #0e1313;
+  --color-line: #1c2626;
+  --color-line-bright: #2a3a3a;
+
+  --color-red-glow: #ff1a1a;
+  --color-red-dim: #7a0f0f;
+  --color-red-deep: #3a0808;
+
+  --color-text-primary: #d8ffe8;
+  --color-text-dim: #6b8a80;
+  --color-text-faint: #3d5450;
+
+  --color-good: #29ff8e;
+  --color-warn: #ffb020;
+  --color-crit: #ff2e4d;
+
+  --animate-scan: scan 6s linear infinite;
+  --animate-flicker: flicker 3.2s ease-in-out infinite;
+  --animate-pulse-slow: pulse-slow 2.4s ease-in-out infinite;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: var(--color-void);
+  }
+
+  body {
+    background-color: var(--color-void);
+    color: var(--color-text-primary);
+    font-family: var(--font-mono);
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% -10%, rgba(255, 26, 26, 0.08), transparent),
+      repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.012) 0px,
+        rgba(255, 255, 255, 0.012) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: var(--color-red-glow);
+    color: #000;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-bright) var(--color-panel);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-panel);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-bright);
+  }
+}
+
+@layer utilities {
+  .text-glow {
+    text-shadow: 0 0 8px currentColor;
+  }
+
+  .border-glow {
+    box-shadow: 0 0 0 1px rgba(255, 26, 26, 0.25), 0 0 16px rgba(255, 26, 26, 0.08);
+  }
+
+  .hud-panel {
+    background: linear-gradient(180deg, var(--color-panel-raised), var(--color-panel));
+    border: 1px solid var(--color-line);
+    position: relative;
+  }
+
+  .hud-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image:
+      linear-gradient(to right, var(--color-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: 0.06;
+  }
+
+  .clip-corner {
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+  }
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes flicker {
+  0%,
+  92%,
+  100% {
+    opacity: 1;
+  }
+  94% {
+    opacity: 0.72;
+  }
+  96% {
+    opacity: 1;
+  }
+  98% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
