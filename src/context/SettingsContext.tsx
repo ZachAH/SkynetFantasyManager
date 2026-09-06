@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { LS_KEYS } from "../config/constants";
+import { ENV_DEFAULT_KEYS } from "../config/env";
 import { useLocalStorageState } from "../lib/useLocalStorageState";
 
 export type LlmProvider = "openai" | "anthropic" | "gemini";
@@ -22,14 +23,18 @@ interface SettingsContextValue {
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
-export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [llmProviderRaw, setLlmProviderRaw] = useLocalStorageState(LS_KEYS.llmProvider, "openai");
-  const [openaiKey, setOpenaiKey] = useLocalStorageState(LS_KEYS.openaiKey);
-  const [anthropicKey, setAnthropicKey] = useLocalStorageState(LS_KEYS.anthropicKey);
-  const [geminiKey, setGeminiKey] = useLocalStorageState(LS_KEYS.geminiKey);
-  const [tavilyKey, setTavilyKey] = useLocalStorageState(LS_KEYS.tavilyKey);
+const DEFAULT_PROVIDER: LlmProvider = ENV_DEFAULT_KEYS.gemini ? "gemini" : "openai";
 
-  const llmProvider = (llmProviderRaw as LlmProvider) || "openai";
+export function SettingsProvider({ children }: { children: ReactNode }) {
+  const [llmProviderRaw, setLlmProviderRaw] = useLocalStorageState(LS_KEYS.llmProvider, DEFAULT_PROVIDER);
+  // A value the user types in Settings (persisted to their own browser's
+  // localStorage) always overrides the build-time env default below it.
+  const [openaiKey, setOpenaiKey] = useLocalStorageState(LS_KEYS.openaiKey, ENV_DEFAULT_KEYS.openai);
+  const [anthropicKey, setAnthropicKey] = useLocalStorageState(LS_KEYS.anthropicKey, ENV_DEFAULT_KEYS.anthropic);
+  const [geminiKey, setGeminiKey] = useLocalStorageState(LS_KEYS.geminiKey, ENV_DEFAULT_KEYS.gemini);
+  const [tavilyKey, setTavilyKey] = useLocalStorageState(LS_KEYS.tavilyKey, ENV_DEFAULT_KEYS.tavily);
+
+  const llmProvider = (llmProviderRaw as LlmProvider) || DEFAULT_PROVIDER;
 
   const activeLlmKey = useMemo(() => {
     if (llmProvider === "openai") return openaiKey;

@@ -13,19 +13,30 @@ Everything works out of the box against the live, free, read-only Sleeper API �
 
 ## Optional: enable the Skynet AI Console + live web search
 
-The AI Console and the Tavily-powered Market Intel search need API keys, which you provide yourself. Open **Skynet Console → CONFIG** in the app and paste in whichever you have:
+The AI Console and the Tavily-powered Market Intel search need API keys. There are two ways to provide them:
 
-| Key | Used for | Get one at |
-|---|---|---|
-| OpenAI API key | LLM reasoning (default provider) | platform.openai.com |
-| Anthropic API key | LLM reasoning (Claude) | console.anthropic.com |
-| Gemini API key | LLM reasoning (Google) | aistudio.google.com |
-| Tavily API key | Live ADP / injury / Vegas-line web search | tavily.com |
+1. **Type one into the app** — open **Skynet Console → CONFIG** and paste it in. Stored only in your browser's `localStorage`, sent directly from your browser to that provider's API.
+2. **Bake one into the build via env vars** — copy `.env.example` to `.env` and fill in values (see **⚠️ Security** below before doing this for a deployed site).
 
-Keys are stored **only** in your browser's `localStorage` and sent directly from your browser to that provider's API — this is a static client-only app with no backend, so nothing passes through a Skynet server. Because of that:
+| Key | Env var | Used for | Get one at |
+|---|---|---|---|
+| OpenAI API key | `VITE_OPENAI_API_KEY` | LLM reasoning | platform.openai.com |
+| Anthropic API key | `VITE_ANTHROPIC_API_KEY` | LLM reasoning (Claude) | console.anthropic.com |
+| Gemini API key | `VITE_GEMINI_API_KEY` | LLM reasoning (Google) | **aistudio.google.com/app/apikey** — not the generic Cloud Console API key page; that issues a different key format (`AQ...`) that the public Gemini API rejects. Default provider is Gemini when this is set. |
+| Tavily API key | `VITE_TAVILY_API_KEY` | Live ADP / injury / Vegas-line web search | tavily.com |
 
-- Anthropic calls include the `anthropic-dangerous-direct-browser-access` header, which is what makes direct browser calls possible; if a provider ever tightens CORS, the fix is to add a thin serverless proxy (e.g. a single Vercel/Cloudflare function) that forwards the request — the console surfaces a clear error if a call is blocked.
+A key typed into Settings always overrides an env-baked one for that browser. A field populated from an env var is labeled `[DEPLOYMENT DEFAULT]` in the Settings modal.
+
+This is a static client-only app with no backend, so nothing passes through a Skynet server — which also means:
+
+- Anthropic calls include the `anthropic-dangerous-direct-browser-access` header, which is what makes direct browser calls possible; if a provider ever tightens CORS, the fix is to add a thin serverless proxy (e.g. a single Netlify/Vercel function) that forwards the request — the console surfaces a clear error if a call is blocked.
 - Don't paste keys into this app on a shared/public machine.
+
+### ⚠️ Security: env vars in a static build are public
+
+Vite inlines every `VITE_`-prefixed env var directly into the JavaScript bundle at build time. Setting one in Netlify's **Site configuration → Environment variables** does **not** keep it server-side the way it would for a backend app — it ends up in plain text in the shipped JS, readable by anyone who opens dev tools on your deployed site. Treat any key you put here as public: use a key you're comfortable with a stranger using on your bill, and never put a key with broader account access (e.g. one also scoped to billing or other APIs) in `.env`. If you want a genuinely private key, the fix is a serverless function proxy instead of a build-time env var — ask if you want that wired up.
+
+`.env` is gitignored — never commit real key values.
 
 ## Architecture
 

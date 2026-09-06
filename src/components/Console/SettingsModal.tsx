@@ -1,5 +1,6 @@
 import { X, KeyRound } from "lucide-react";
 import { useSettings, type LlmProvider } from "../../context/SettingsContext";
+import { ENV_DEFAULT_KEYS } from "../../config/env";
 
 interface Props {
   open: boolean;
@@ -51,21 +52,43 @@ export function SettingsModal({ open, onClose }: Props) {
             </select>
           </div>
 
-          <ApiKeyField label="OpenAI API Key" value={s.openaiKey} onChange={s.setOpenaiKey} placeholder="sk-..." />
-          <ApiKeyField label="Anthropic API Key" value={s.anthropicKey} onChange={s.setAnthropicKey} placeholder="sk-ant-..." />
-          <ApiKeyField label="Gemini API Key" value={s.geminiKey} onChange={s.setGeminiKey} placeholder="AIza..." />
+          <ApiKeyField
+            label="OpenAI API Key"
+            value={s.openaiKey}
+            onChange={s.setOpenaiKey}
+            placeholder="sk-..."
+            fromEnv={Boolean(ENV_DEFAULT_KEYS.openai) && s.openaiKey === ENV_DEFAULT_KEYS.openai}
+          />
+          <ApiKeyField
+            label="Anthropic API Key"
+            value={s.anthropicKey}
+            onChange={s.setAnthropicKey}
+            placeholder="sk-ant-..."
+            fromEnv={Boolean(ENV_DEFAULT_KEYS.anthropic) && s.anthropicKey === ENV_DEFAULT_KEYS.anthropic}
+          />
+          <ApiKeyField
+            label="Gemini API Key"
+            value={s.geminiKey}
+            onChange={s.setGeminiKey}
+            placeholder="AIza..."
+            fromEnv={Boolean(ENV_DEFAULT_KEYS.gemini) && s.geminiKey === ENV_DEFAULT_KEYS.gemini}
+          />
           <div className="border-t border-line pt-3">
             <ApiKeyField
               label="Tavily API Key (Market Intel Search)"
               value={s.tavilyKey}
               onChange={s.setTavilyKey}
               placeholder="tvly-..."
+              fromEnv={Boolean(ENV_DEFAULT_KEYS.tavily) && s.tavilyKey === ENV_DEFAULT_KEYS.tavily}
             />
           </div>
 
           <p className="font-mono text-[10px] leading-relaxed text-text-faint">
-            Keys are stored only in this browser's localStorage and sent directly from your browser to the provider's
-            API. Nothing passes through a Skynet server. Clear them anytime by emptying the field.
+            Keys you type here are stored only in this browser's localStorage and sent directly from your browser to
+            the provider's API — nothing passes through a Skynet server. A field marked{" "}
+            <span className="text-warn">[DEPLOYMENT DEFAULT]</span> was baked into this build from a Netlify
+            environment variable at build time, which means it is visible to anyone who inspects this site's JS
+            bundle. Clear any field to stop using that key from this browser.
           </p>
         </div>
       </div>
@@ -78,15 +101,20 @@ function ApiKeyField({
   value,
   onChange,
   placeholder,
+  fromEnv,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
+  fromEnv?: boolean;
 }) {
   return (
     <div>
-      <label className="mb-1 block font-mono text-[10px] font-bold tracking-widest text-text-dim">{label}</label>
+      <label className="mb-1 flex items-center gap-1.5 font-mono text-[10px] font-bold tracking-widest text-text-dim">
+        {label}
+        {fromEnv && <span className="text-warn">[DEPLOYMENT DEFAULT]</span>}
+      </label>
       <input
         type="password"
         value={value}

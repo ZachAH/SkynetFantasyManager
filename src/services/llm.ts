@@ -3,7 +3,7 @@ import type { LlmProvider } from "../context/SettingsContext";
 export const DEFAULT_MODELS: Record<LlmProvider, string> = {
   openai: "gpt-4o-mini",
   anthropic: "claude-sonnet-5",
-  gemini: "gemini-2.5-flash",
+  gemini: "gemini-3.6-flash",
 };
 
 export class LlmError extends Error {
