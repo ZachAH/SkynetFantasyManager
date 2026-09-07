@@ -107,11 +107,15 @@ export function buildLeagueContextSummary(args: BuildContextArgs): string {
 
   if (trendingAdds && trendingAdds.length > 0) {
     lines.push("");
-    lines.push("TOP LEAGUE-WIDE TRENDING ADDS (last 24h, by # of leagues adding):");
+    lines.push(
+      "TOP LEAGUE-WIDE TRENDING ADDS (last 24h waiver activity — NOT a talent ranking; often surfaces injured/droppable players, use with caution):",
+    );
     trendingAdds.slice(0, 12).forEach((t) => {
       const p = players?.[t.player_id];
       const name = playerDisplayName(p, t.player_id);
-      lines.push(`  - ${name} (${p?.position ?? "?"}/${p?.team ?? "FA"}) — added in ${t.count} leagues`);
+      const inj = injuryBadge(p?.injury_status);
+      const injStr = inj.label ? ` [${inj.label}]` : "";
+      lines.push(`  - ${name} (${p?.position ?? "?"}/${p?.team ?? "FA"})${injStr} — added in ${t.count} leagues`);
     });
   }
 
