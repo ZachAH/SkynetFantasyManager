@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Terminal, Settings, Send, Loader2, AlertTriangle } from "lucide-react";
+import { Terminal, Settings, Send, Loader2, AlertTriangle, Search } from "lucide-react";
 import clsx from "clsx";
 import { Panel } from "../UI/Panel";
 import { SettingsModal } from "./SettingsModal";
@@ -9,11 +9,12 @@ import { useCommish } from "../../context/CommishContext";
 import { useLeague, useLeagueRosters, useLeagueUsers, useAllPlayers, useSkynetGM, useTrendingAdds } from "../../hooks/useSleeperLeague";
 import { useSkynetMatchup } from "../../hooks/useSkynetMatchup";
 import { useCurrentDraft } from "../../hooks/useLeagueDraft";
-import { buildDraftContextSummary, buildLeagueContextSummary } from "../../lib/leagueContext";
+import { buildAdpSearchContext, buildDraftContextSummary, buildLeagueContextSummary } from "../../lib/leagueContext";
 import { computeDraftTurn } from "../../lib/draftTurn";
 import { resolveEffectiveLeague } from "../../lib/resolveLeagueSettings";
 import { MODE_INSTRUCTIONS, SKYNET_SYSTEM_PROMPT, buildModePrompt, type SkynetMode } from "../../lib/skynetPrompts";
 import { chatComplete } from "../../services/llm";
+import { tavilySearch, IntelError } from "../../services/intel";
 
 const MODES: { value: SkynetMode; label: string }[] = [
   { value: "draft", label: "Draft Assistant" },
@@ -34,6 +35,7 @@ export function SkynetConsole({ forceDraftModeSignal }: Props) {
   const [mode, setMode] = useState<SkynetMode>("lineup");
   const [freeformInput, setFreeformInput] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [stage, setStage] = useState<"searching" | "reasoning" | null>(null);
 
   useEffect(() => {
     if (forceDraftModeSignal) setMode("draft");
@@ -82,20 +84,46 @@ export function SkynetConsole({ forceDraftModeSignal }: Props) {
             })
           : "";
 
+      let adpBlock = "";
+      if (mode === "draft") {
+        if (settings.hasTavilyKey) {
+          setStage("searching");
+          try {
+            const search = await tavilySearch(
+              "2026 fantasy football draft rankings ADP consensus top 200 overall PPR redraft",
+              settings.tavilyKey,
+              { maxResults: 8, days: 45 },
+            );
+            adpBlock = buildAdpSearchContext(search);
+          } catch (err) {
+            const msg = err instanceof IntelError || err instanceof Error ? err.message : "unknown error";
+            adpBlock = buildAdpSearchContext(undefined, msg);
+          }
+        } else {
+          adpBlock = buildAdpSearchContext(undefined);
+        }
+      }
+
+      setStage("reasoning");
+
       const extra =
         mode === "freeform"
           ? `${MODE_INSTRUCTIONS.freeform}\n\nOPERATOR QUESTION: ${freeformInput.trim()}`
           : MODE_INSTRUCTIONS[mode];
 
-      const fullContext = draftBlock ? `${contextBlock}\n\n${draftBlock}` : contextBlock;
+      const fullContext = [contextBlock, draftBlock, adpBlock].filter(Boolean).join("\n\n");
       const userPrompt = buildModePrompt(fullContext, extra);
 
-      return chatComplete({
-        provider: settings.llmProvider,
-        apiKey: settings.activeLlmKey,
-        systemPrompt: SKYNET_SYSTEM_PROMPT,
-        userPrompt,
-      });
+      try {
+        return await chatComplete({
+          provider: settings.llmProvider,
+          apiKey: settings.activeLlmKey,
+          systemPrompt: SKYNET_SYSTEM_PROMPT,
+          userPrompt,
+        });
+      } finally {
+        setStage(null);
+      }
     },
   });
 
@@ -151,13 +179,21 @@ export function SkynetConsole({ forceDraftModeSignal }: Props) {
           </div>
         )}
 
+        {mode === "draft" && !settings.hasTavilyKey && (
+          <div className="mb-3 flex items-center gap-2 border border-warn/40 bg-warn/5 px-3 py-2 font-mono text-[11px] text-warn">
+            <Search size={13} />
+            No Tavily key — draft picks will use the model's own training knowledge instead of a live ADP search. Add
+            one in CONFIG for current rankings.
+          </div>
+        )}
+
         <button
           onClick={() => runMutation.mutate()}
           disabled={!canRun || runMutation.isPending}
           className="flex items-center gap-1.5 border border-red-dim bg-red-deep/30 px-4 py-2 font-mono text-xs font-bold tracking-widest text-red-glow transition hover:bg-red-deep/50 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {runMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-          {runMutation.isPending ? "COMPUTING..." : "EXECUTE"}
+          {stage === "searching" ? "SEARCHING LIVE ADP..." : stage === "reasoning" ? "COMPUTING..." : "EXECUTE"}
         </button>
 
         {runMutation.isError && (

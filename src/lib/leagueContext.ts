@@ -186,3 +186,21 @@ export function buildDraftContextSummary(args: DraftContextArgs): string {
 
   return lines.join("\n");
 }
+
+export function buildAdpSearchContext(search: { answer: string | null; results: { title: string; content: string; url: string }[] } | undefined, error?: string): string {
+  if (error) {
+    return `LIVE ADP WEB SEARCH: FAILED (${error}). Fall back to your own training knowledge for player evaluation and explicitly flag that live data was unavailable.`;
+  }
+  if (!search) {
+    return "LIVE ADP WEB SEARCH: not configured (no Tavily key) — relying on your own training knowledge for player evaluation. Flag this limitation and be conservative about recency (rookies, offseason trades, camp battles may be wrong).";
+  }
+
+  const lines: string[] = [
+    "LIVE ADP WEB SEARCH RESULTS (fetched just now — this is more current than your training knowledge and should be your PRIMARY source for who's actually good/available right now; cross-reference every name against the DRAFT STATUS block above and never recommend someone already drafted):",
+  ];
+  if (search.answer) lines.push(`SEARCH SUMMARY: ${search.answer}`);
+  search.results.slice(0, 8).forEach((r) => {
+    lines.push(`- [${r.title}]: ${r.content.slice(0, 500).replace(/\s+/g, " ")}`);
+  });
+  return lines.join("\n");
+}
