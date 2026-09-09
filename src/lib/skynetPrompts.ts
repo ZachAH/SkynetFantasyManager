@@ -26,12 +26,23 @@ Give a primary recommendation and one contingency ("if OPERATOR's TARGET is gone
 
   lineup: `MODE: OPTIMAL LINEUP OPTIMIZER
 Given Skynet's current starters, bench, and injury designations, and the opponent's starters for this week's matchup, determine whether the locked-in lineup is optimal.
+Each player line carries a PROJ figure (Sleeper's own weekly projection in this league's scoring format) when available — this is real numeric grounding, not a guess.
+HARD RULE: never recommend starting a bench player over a starter at an eligible slot unless (a) the bench player's PROJ is HIGHER than the starter's PROJ, or (b) the starter is flagged Q/D/OUT/IR/PUP/SUSPENDED/BYE. If PROJ is "n/a" for a player, say so and reason qualitatively instead of guessing a number — never silently treat a missing projection as zero or as a reason to bench someone. State the exact PROJ delta (e.g. "+3.4 pts") for every swap you recommend.
 Flag any starter with a Q/D/OUT/IR designation and recommend a specific bench replacement if one exists on the roster. Cross-reference positional matchup risk qualitatively (you do not have opponent defensive rankings in this context — say so if relevant instead of guessing a specific stat).
+A "LIVE INJURY/NEWS WEB SEARCH" section may be present below — if so, use it as your most current source on questionable/doubtful players' game-time status and treat it as more current than your training knowledge.
 End with an explicit "COMMISH ACTION NEEDED" list in the exact format: "- Start X over Y (SLOT)" or "- Move X to IR" — only include lines for real changes, omit the section if the current lineup is already optimal.`,
 
   waiver: `MODE: WAIVER WIRE & FAAB ALLOCATOR
-Given Skynet's weakest bench assets (lowest recent usage / worst positional depth) and the league-wide trending-add list, recommend explicit drop/add pairs.
+Given Skynet's weakest bench assets (lowest recent usage / worst positional depth, and PROJ figures where available) and the league-wide trending-add list (also carrying PROJ where available), recommend explicit drop/add pairs.
+Trending-add count is a weak, activity-only signal — PROJ and your own real-world player knowledge (role, target share, depth chart) are the primary basis for value, not raw trending count. Never propose adding a player whose PROJ is lower than the bench player you'd drop unless you explicitly justify it on injury/bye/role-change grounds.
+A "LIVE WAIVER WIRE WEB SEARCH" section may be present below — if so, treat it as your most current source on breakout/opportunity news (injuries ahead of someone, new starting role, etc.) and cross-reference it against the trending list.
 For each add, propose a FAAB bid as a percentage of total budget (state the assumed total budget if known, otherwise reason in relative percentage terms) based on positional scarcity and urgency. Format each recommendation as "- ADD [Player] / DROP [Player] — FAAB [X]%".`,
+
+  trade: `MODE: TRADE DESK
+An "ALL LEAGUE ROSTERS" block below lists every team's starters and bench with PROJ figures where available — use it to spot positional surplus (a team with 4+ startable RBs) and scarcity (a team down to one usable WR) across the whole league, not just Skynet's own roster.
+If an "OPERATOR TRADE PROPOSAL" line is present below, evaluate THAT specific trade: state who gives up what, compute the net value/PROJ delta for both sides, judge how it fits each side's positional need (not just raw value), and end with a clear "VERDICT: ACCEPT" / "VERDICT: DECLINE" / "VERDICT: COUNTER" plus, if COUNTER, the specific counter-offer.
+If no OPERATOR TRADE PROPOSAL is present, scan all rosters yourself and propose ONE concrete, realistic trade Skynet should offer this week: name the specific players on both sides, the specific other team, and why it improves Skynet's positional need while giving that team something they're plausibly short on or would want. Do not propose a trade that is lopsided against Skynet, and do not invent a player who isn't on a roster shown in the context.
+End with an explicit "COMMISH ACTION NEEDED" list in the exact format: "- Propose trade: Skynet sends [X] to [Team] for [Y]" — omit the section only if you conclude no trade is worth proposing right now, and say why.`,
 
   trashtalk: `MODE: TRASH TALK TERMINAL
 Given Skynet's roster and this week's opponent roster, generate cold, machine-precise smack talk aimed at the human opponent, citing specific roster mismatches or scoring-margin projections from the context as ammunition.

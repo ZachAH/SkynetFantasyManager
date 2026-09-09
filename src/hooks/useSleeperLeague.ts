@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { LEAGUE_ID, SKYNET_USERNAME } from "../config/constants";
 import { sleeperApi } from "../services/sleeper";
+import { getWeeklyProjections, pprKeyForScoring } from "../services/projections";
 
 const STALE_SHORT = 1000 * 30; // 30s — live scoring during games
 const STALE_MEDIUM = 1000 * 60 * 5; // 5min — league/roster metadata
@@ -63,6 +64,25 @@ export function useTrendingDrops(limit = 25) {
     queryKey: ["trending-drop", limit],
     queryFn: () => sleeperApi.getTrendingDrops(24, limit),
     staleTime: STALE_LONG,
+  });
+}
+
+/**
+ * Weekly fantasy-point projections keyed by player_id, in this league's own
+ * scoring format (PPR/half-PPR/standard). Grounds the AI console's lineup and
+ * waiver recommendations in actual numbers instead of name-recognition guesses.
+ */
+export function useWeeklyProjections(
+  season: string | undefined,
+  week: number | undefined,
+  scoringSettings: Record<string, number> | undefined,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ["weekly-projections", season, week, scoringSettings ? pprKeyForScoring(scoringSettings) : undefined],
+    queryFn: () => getWeeklyProjections(season as string, week as number, pprKeyForScoring(scoringSettings ?? {})),
+    enabled: enabled && Boolean(season) && typeof week === "number" && week > 0 && Boolean(scoringSettings),
+    staleTime: 1000 * 60 * 30,
   });
 }
 

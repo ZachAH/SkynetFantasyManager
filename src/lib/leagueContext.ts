@@ -26,9 +26,27 @@ interface BuildContextArgs {
   opponentRoster: SleeperRoster | undefined;
   opponentUser: SleeperUser | undefined;
   trendingAdds: TrendingPlayer[] | undefined;
+  projections?: Record<string, number>;
 }
 
-function rosterPlayerLines(playerIds: string[] | null | undefined, players: SleeperPlayersMap | undefined): string {
+function projLabel(id: string, projections: Record<string, number> | undefined): string {
+  if (!projections) return "";
+  const pts = projections[id];
+  return typeof pts === "number" ? ` — PROJ ${pts.toFixed(1)}` : " — PROJ n/a";
+}
+
+function projTotal(playerIds: string[] | null | undefined, projections: Record<string, number> | undefined): number {
+  if (!projections) return 0;
+  return (playerIds ?? [])
+    .filter((id) => id !== "0")
+    .reduce((sum, id) => sum + (projections[id] ?? 0), 0);
+}
+
+function rosterPlayerLines(
+  playerIds: string[] | null | undefined,
+  players: SleeperPlayersMap | undefined,
+  projections?: Record<string, number>,
+): string {
   const real = (playerIds ?? []).filter((id) => id !== "0");
   if (real.length === 0) return "  (none — empty/pre-draft roster)";
   return real
@@ -39,13 +57,13 @@ function rosterPlayerLines(playerIds: string[] | null | undefined, players: Slee
       const team = p?.team ?? "FA";
       const inj = injuryBadge(p?.injury_status);
       const injStr = inj.label ? ` [${inj.label}]` : "";
-      return `  - ${name} (${pos}/${team})${injStr}`;
+      return `  - ${name} (${pos}/${team})${injStr}${projLabel(id, projections)}`;
     })
     .join("\n");
 }
 
 export function buildLeagueContextSummary(args: BuildContextArgs): string {
-  const { league, users, rosters, players, skynetRoster, skynetUser, currentWeek, myMatchup, opponentMatchup, opponentRoster, opponentUser, trendingAdds } = args;
+  const { league, users, rosters, players, skynetRoster, skynetUser, currentWeek, myMatchup, opponentMatchup, opponentRoster, opponentUser, trendingAdds, projections } = args;
 
   const lines: string[] = [];
 
@@ -68,15 +86,18 @@ export function buildLeagueContextSummary(args: BuildContextArgs): string {
       lines.push(`FAAB USED: $${skynetRoster.settings.waiver_budget_used}`);
     }
     lines.push("SKYNET STARTERS:");
-    lines.push(rosterPlayerLines(skynetRoster.starters, players));
+    lines.push(rosterPlayerLines(skynetRoster.starters, players, projections));
     const benchIds = (skynetRoster.players ?? []).filter(
       (id) => !(skynetRoster.starters ?? []).includes(id) && !(skynetRoster.reserve ?? []).includes(id),
     );
     lines.push("SKYNET BENCH:");
-    lines.push(rosterPlayerLines(benchIds, players));
+    lines.push(rosterPlayerLines(benchIds, players, projections));
     if (skynetRoster.reserve && skynetRoster.reserve.length > 0) {
       lines.push("SKYNET IR:");
-      lines.push(rosterPlayerLines(skynetRoster.reserve, players));
+      lines.push(rosterPlayerLines(skynetRoster.reserve, players, projections));
+    }
+    if (projections) {
+      lines.push(`SKYNET STARTERS PROJECTED TOTAL (this week, this league's scoring format): ${projTotal(skynetRoster.starters, projections).toFixed(1)}`);
     }
   }
 
@@ -87,8 +108,18 @@ export function buildLeagueContextSummary(args: BuildContextArgs): string {
     if (opponentRoster) {
       lines.push(`OPPONENT RECORD: ${record(opponentRoster)}`);
       lines.push("OPPONENT STARTERS:");
-      lines.push(rosterPlayerLines(opponentMatchup?.starters, players));
+      lines.push(rosterPlayerLines(opponentMatchup?.starters, players, projections));
+      if (projections) {
+        lines.push(`OPPONENT STARTERS PROJECTED TOTAL: ${projTotal(opponentMatchup?.starters, projections).toFixed(1)}`);
+      }
     }
+  }
+
+  if (projections) {
+    lines.push("");
+    lines.push(
+      "PROJ figures above are Sleeper's own weekly fantasy-point projections for this league's scoring format (PPR/half-PPR/standard, whichever matches). They do not capture every custom scoring bonus this league may run, but they are real numeric grounding, not a guess — treat them as authoritative for comparing two specific players and NEVER recommend starting a player over another eligible player at a lower PROJ unless the higher-PROJ one is flagged Q/D/OUT/IR/BYE/PUP/SUSPENDED above.",
+    );
   }
 
   if (skynetUser && rosters && users) {
@@ -115,7 +146,7 @@ export function buildLeagueContextSummary(args: BuildContextArgs): string {
       const name = playerDisplayName(p, t.player_id);
       const inj = injuryBadge(p?.injury_status);
       const injStr = inj.label ? ` [${inj.label}]` : "";
-      lines.push(`  - ${name} (${p?.position ?? "?"}/${p?.team ?? "FA"})${injStr} — added in ${t.count} leagues`);
+      lines.push(`  - ${name} (${p?.position ?? "?"}/${p?.team ?? "FA"})${injStr} — added in ${t.count} leagues${projLabel(t.player_id, projections)}`);
     });
   }
 
@@ -187,20 +218,83 @@ export function buildDraftContextSummary(args: DraftContextArgs): string {
   return lines.join("\n");
 }
 
-export function buildAdpSearchContext(search: { answer: string | null; results: { title: string; content: string; url: string }[] } | undefined, error?: string): string {
+export interface WebSearchLabels {
+  /** e.g. "LIVE ADP WEB SEARCH" */
+  label: string;
+  /** Sentence describing what this search is the primary source for. */
+  primaryUseNote: string;
+  /** Sentence describing what to fall back to / flag when no key is configured. */
+  noKeyNote: string;
+}
+
+export function buildWebSearchContext(
+  search: { answer: string | null; results: { title: string; content: string; url: string }[] } | undefined,
+  labels: WebSearchLabels,
+  error?: string,
+): string {
   if (error) {
-    return `LIVE ADP WEB SEARCH: FAILED (${error}). Fall back to your own training knowledge for player evaluation and explicitly flag that live data was unavailable.`;
+    return `${labels.label}: FAILED (${error}). Fall back to your own training knowledge and explicitly flag that live data was unavailable.`;
   }
   if (!search) {
-    return "LIVE ADP WEB SEARCH: not configured (no Tavily key) — relying on your own training knowledge for player evaluation. Flag this limitation and be conservative about recency (rookies, offseason trades, camp battles may be wrong).";
+    return `${labels.label}: not configured (no Tavily key) — ${labels.noKeyNote}`;
   }
 
-  const lines: string[] = [
-    "LIVE ADP WEB SEARCH RESULTS (fetched just now — this is more current than your training knowledge and should be your PRIMARY source for who's actually good/available right now; cross-reference every name against the DRAFT STATUS block above and never recommend someone already drafted):",
-  ];
+  const lines: string[] = [`${labels.label} RESULTS (fetched just now): ${labels.primaryUseNote}`];
   if (search.answer) lines.push(`SEARCH SUMMARY: ${search.answer}`);
   search.results.slice(0, 8).forEach((r) => {
     lines.push(`- [${r.title}]: ${r.content.slice(0, 500).replace(/\s+/g, " ")}`);
+  });
+  return lines.join("\n");
+}
+
+function teamRosterBlock(
+  roster: SleeperRoster,
+  label: string,
+  players: SleeperPlayersMap | undefined,
+  projections: Record<string, number> | undefined,
+): string {
+  const lines: string[] = [`TEAM: ${label} (${record(roster)}, ${fmtPoints(fptsFromRoster(roster))} PF)`];
+  const starterIds = roster.starters ?? [];
+  const benchIds = (roster.players ?? []).filter((id) => !starterIds.includes(id) && !(roster.reserve ?? []).includes(id));
+  lines.push("  STARTERS:");
+  lines.push(
+    rosterPlayerLines(starterIds, players, projections)
+      .split("\n")
+      .map((l) => `  ${l}`)
+      .join("\n"),
+  );
+  lines.push("  BENCH:");
+  lines.push(
+    rosterPlayerLines(benchIds, players, projections)
+      .split("\n")
+      .map((l) => `  ${l}`)
+      .join("\n"),
+  );
+  if (projections) {
+    lines.push(`  STARTERS PROJECTED TOTAL: ${projTotal(starterIds, projections).toFixed(1)}`);
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Every roster in the league, in full — needed for Trade Desk mode to spot
+ * positional surplus/scarcity across teams. Not used by lineup/waiver/draft
+ * modes, which only need Skynet + this week's opponent, to keep context lean.
+ */
+export function buildAllRostersSummary(
+  rosters: SleeperRoster[] | undefined,
+  users: SleeperUser[] | undefined,
+  players: SleeperPlayersMap | undefined,
+  skynetRosterId: number | undefined,
+  projections: Record<string, number> | undefined,
+): string {
+  if (!rosters || rosters.length === 0) return "";
+  const lines: string[] = ["ALL LEAGUE ROSTERS (for trade target scouting):"];
+  rosters.forEach((r) => {
+    const u = users?.find((u) => u.user_id === r.owner_id);
+    const label = `${u ? teamNameForUser(u) : "Unknown"}${r.roster_id === skynetRosterId ? " <-- SKYNET" : ""}`;
+    lines.push("");
+    lines.push(teamRosterBlock(r, label, players, projections));
   });
   return lines.join("\n");
 }
